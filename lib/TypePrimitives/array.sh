@@ -41,7 +41,7 @@ array.length() {
 array.contains() {
   local element
 
-  @return # is it required? TODO: test
+  #@return # is it required? TODO: test
 
   ## TODO: probably should return a [boolean] type, not normal return
 
@@ -84,6 +84,12 @@ array.reverse() {
 
 array.forEach() {
   [string] action
+
+  # if no action specified, read from stdin
+  # this lets our 'closure' come from a heredoc
+  if [ -z "$action" ]; then
+    action=$(</dev/stdin)
+  fi
 
   string item
   integer index

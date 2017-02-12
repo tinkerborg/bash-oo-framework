@@ -362,7 +362,13 @@ var:this() {
 }
 
 var:() {
-  Type::Handle "$@"
+  try {
+    Type::Handle "$@"
+  } catch {
+    local ret=$?
+    return $ret
+  }
+  return 0
   # Type::Handle $1 "${@:2}"
 }
 
@@ -675,8 +681,7 @@ Type::Handle() {
       # Log 'running stack for:' $variableName
       Type::RunCurrentStack
       # Log 'output was:' "${!variableName}"
-      ## TODO: this does not work: (false boolean should return fail)
-      [[ "${!variableName}" == "${__primitive_extension_fingerprint__boolean}:false" ]] && return 1 # && Log "LALALALA"
+      [[ "${returnValueDefinition}" == "${__primitive_extension_fingerprint__boolean}:false" ]] && return 1 # && Log "LALALALA"
     elif [[ "$prevMode" == 'property' ]]
     then
       if [[ "$currentPropertyVisibility" == 'public' || "$__access_private" == "true" ]]

@@ -79,6 +79,11 @@ string.match() {
 	@return:value "${allMatches[$capturingGroup]}"
 }
 
+string.matches() {
+	@handleless @required [string] regex
+    [ -z $(this match "$regex") ] && return 1 || return 0
+}
+
 string.toJSON() {
   ## http://stackoverflow.com/a/3020108/595157
 
