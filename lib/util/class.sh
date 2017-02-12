@@ -21,6 +21,19 @@ Type::DefineProperty() {
   # fi
 }
 
+extends() {
+  local class=${FUNCNAME[1]#*:}
+  local parent="$1"
+  eval "__${class}_parent_class='$parent'"
+}
+
+protected() {
+  # ${FUNCNAME[1]} contains the name of the class
+  local class=${FUNCNAME[1]#*:}
+
+  Type::DefineProperty private $class "$@"
+}
+
 private() {
   # ${FUNCNAME[1]} contains the name of the class
   local class=${FUNCNAME[1]#*:}
@@ -41,6 +54,8 @@ Type::Initialize() {
 
   Function::Exists class:$name && class:$name || true
 
+  Type::ResolveInheritance $name
+
   Type::ConvertAllOfTypeToMethodsIfNeeded "$name"
 
   case "$style" in
@@ -57,6 +72,51 @@ Type::Initialize() {
       alias $name="_type=$name Type::TrapAssign declare -A"
     ;;
   esac
+
+}
+
+# very primitive inheritance support
+# #TODO - handle visibility correctly and add protected visibility
+#         maybe via method proxies?
+Type::ResolveInheritance() {
+  local type="$1"
+  if Variable::Exists "__${type}_parent_class"; then
+    local parentType=$(@get __${type}_parent_class)
+    local parentSanitized=$(String::SanitizeForVariableName $parentType)
+
+    for methodSpec in $(Function::GetAllStartingWith "${parentType}."); do
+      local methodName=${methodSpec/$parentType./}
+      if ! Function::Exists "${type}"."${methodName}"; then
+        local methodBody=$(declare -f "$methodSpec" || true)
+        eval "${methodBody/$parentType/$type}"
+      fi
+    done
+
+    if Variable::Exists "__${parentSanitized}_property_names"; then
+      local typeSanitized=$(String::SanitizeForVariableName $type)
+      local localPropertyNamesIndirect="__${typeSanitized}_property_names[@]"
+      local localPropertyNames=(${!localPropertyNamesIndirect})
+      local propertyIndexesIndirect="__${parentSanitized}_property_names[@]"
+      local -i propertyIndex=0
+      local property
+
+      for property in "${!propertyIndexesIndirect}"; do
+        if ! Array::Contains "${property}" "${localPropertyNames[@]}"; then
+          local propTypeIndirect=__${parentSanitized}_property_types[$propertyIndex]
+          local propType=${!propTypeIndirect}
+          local visibilityIndirect=__${parentSanitized}_property_visibilities[$propertyIndex]
+          local visibility=${!visibilityIndirect}
+          local defaultIndirect=__${parentSanitized}_property_defaults[$propertyIndex]
+          local default=${!defaultIndirect}
+          eval "__${typeSanitized}_property_names+=( '$property' )"
+          eval "__${typeSanitized}_property_types+=( '$propType' )"
+          eval "__${typeSanitized}_property_visibilities+=( '$visibility' )"
+          eval "__${typeSanitized}_property_defaults+=( \"\$default\" )"
+        fi
+        propertyIndex+=1
+      done
+    fi
+  fi
 }
 
 Type::InitializeStatic() {
